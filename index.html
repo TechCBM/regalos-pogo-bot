@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Regalos GO</title>
+
+<!-- SDK oficial de Telegram para Mini Apps -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f0f14;
+    color: #ffffff;
+    padding-bottom: 20px;
+  }
+
+  .app {
+    max-width: 420px;
+    margin: 0 auto;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid #26262e;
+  }
+  .header .name { font-size: 16px; font-weight: 600; }
+  .header .streak { font-size: 12px; color: #9a9aa5; margin-top: 2px; }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: #6c5ce7; display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 14px;
+  }
+
+  /* INVENTARIO */
+  .inventory {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    padding: 16px;
+  }
+  .item-card {
+    background: #1a1a22;
+    border-radius: 14px;
+    padding: 14px 6px;
+    text-align: center;
+  }
+  .item-card .icon { font-size: 26px; }
+  .item-card .qty { font-size: 18px; font-weight: 700; margin-top: 6px; }
+  .item-card .label { font-size: 11px; color: #9a9aa5; margin-top: 2px; }
+
+  /* BOTON ANUNCIO */
+  .ad-button {
+    margin: 0 16px 16px;
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    border: none;
+    border-radius: 14px;
+    height: 50px;
+    width: calc(100% - 32px);
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .ad-button:active { transform: scale(0.97); }
+  .ad-button:disabled { opacity: 0.5; }
+
+  /* MISIONES */
+  .section-title {
+    font-size: 13px;
+    color: #9a9aa5;
+    padding: 0 16px 8px;
+  }
+  .missions { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .mission-row {
+    background: #1a1a22;
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+  .mission-row .progress { color: #6c5ce7; font-weight: 600; }
+  .mission-row .done { color: #00d68f; font-weight: 600; }
+
+  /* REGALAR */
+  .gift-box {
+    margin: 0 16px 16px;
+    background: #1a1a22;
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .gift-box .friend-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: #fdcb6e; color: #663c00;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px;
+  }
+  .gift-box .friend-name { font-size: 13px; font-weight: 600; }
+  .gift-box .friend-sub { font-size: 11px; color: #6b6b75; }
+  .gift-box button {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid #3a3a45;
+    color: white;
+    border-radius: 10px;
+    height: 32px;
+    padding: 0 14px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* NAV INFERIOR */
+  .nav {
+    display: flex;
+    border-top: 1px solid #26262e;
+    position: sticky;
+    bottom: 0;
+    background: #0f0f14;
+  }
+  .nav div {
+    flex: 1;
+    text-align: center;
+    padding: 12px 0;
+    font-size: 20px;
+    color: #6b6b75;
+    cursor: pointer;
+  }
+  .nav div.active { color: #6c5ce7; }
+
+  .toast {
+    position: fixed;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a22;
+    border: 1px solid #3a3a45;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="header">
+    <div>
+      <div class="name" id="userName">Hola, Jugador</div>
+      <div class="streak" id="streakText">🔥 Racha: 0 dias</div>
+    </div>
+    <div class="avatar" id="avatarLetter">?</div>
+  </div>
+
+  <div class="inventory">
+    <div class="item-card">
+      <div class="icon">🔮</div>
+      <div class="qty" id="qtyCristales">0</div>
+      <div class="label">Cristales</div>
+    </div>
+    <div class="item-card">
+      <div class="icon">🥚</div>
+      <div class="qty" id="qtyHuevos">0</div>
+      <div class="label">Huevos</div>
+    </div>
+    <div class="item-card">
+      <div class="icon">🎯</div>
+      <div class="qty" id="qtyCapturas">0</div>
+      <div class="label">Capturas</div>
+    </div>
+  </div>
+
+  <button class="ad-button" id="watchAdBtn" onclick="watchAd()">
+    ▶️ Ver anuncio: +3 cristales
+  </button>
+
+  <div class="section-title">Misiones de hoy</div>
+  <div class="missions">
+    <div class="mission-row">
+      <span>Ver 3 anuncios</span>
+      <span class="progress" id="missionAdsProgress">0/3</span>
+    </div>
+    <div class="mission-row">
+      <span>Regalar 1 objeto</span>
+      <span class="progress" id="missionGiftProgress">0/1</span>
+    </div>
+  </div>
+
+  <div class="section-title">Regalar a un amigo</div>
+  <div class="gift-box">
+    <div class="friend-avatar">M</div>
+    <div>
+      <div class="friend-name">Maria</div>
+      <div class="friend-sub">3 regalos esta semana</div>
+    </div>
+    <button onclick="sendGift()">Regalar</button>
+  </div>
+
+  <div class="nav">
+    <div class="active">🏠</div>
+    <div>🎁</div>
+    <div>🏆</div>
+    <div>👤</div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ============================================
+  // Inicializa el SDK de Telegram
+  // ============================================
+  const tg = window.Telegram ? window.Telegram.WebApp : null;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+  }
+
+  // ============================================
+  // URL de tu backend (cambia esto por tu URL de Render)
+  // ============================================
+  const BACKEND_URL = "https://TU-BACKEND.onrender.com";
+
+  // ============================================
+  // Estado local del jugador (se reemplaza con datos reales del backend)
+  // ============================================
+  let state = {
+    cristales: 0,
+    huevos: 0,
+    capturas: 0,
+    streak: 0,
+    adsWatchedToday: 0,
+    giftsSentToday: 0
+  };
+
+  function initUser() {
+    let name = "Jugador";
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      name = tg.initDataUnsafe.user.first_name || "Jugador";
+    }
+    document.getElementById("userName").textContent = "Hola, " + name;
+    document.getElementById("avatarLetter").textContent = name.charAt(0).toUpperCase();
+  }
+
+  function renderState() {
+    document.getElementById("qtyCristales").textContent = state.cristales;
+    document.getElementById("qtyHuevos").textContent = state.huevos;
+    document.getElementById("qtyCapturas").textContent = state.capturas;
+    document.getElementById("streakText").textContent = "🔥 Racha: " + state.streak + " dias";
+    document.getElementById("missionAdsProgress").textContent = state.adsWatchedToday + "/3";
+    document.getElementById("missionGiftProgress").textContent = state.giftsSentToday + "/1";
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.style.display = "block";
+    setTimeout(() => { t.style.display = "none"; }, 2000);
+  }
+
+  // ============================================
+  // Ver anuncio (aqui se conecta con Monetag)
+  // ============================================
+  function watchAd() {
+    const btn = document.getElementById("watchAdBtn");
+    btn.disabled = true;
+    btn.textContent = "Cargando anuncio...";
+
+    // Cuando integres Monetag, aqui llamas su funcion de rewarded ad, ej:
+    // show_9331715().then(() => { onAdCompleted(); });
+
+    // Simulacion temporal mientras no tienes Monetag conectado:
+    setTimeout(() => {
+      onAdCompleted();
+      btn.disabled = false;
+      btn.textContent = "▶️ Ver anuncio: +3 cristales";
+    }, 1500);
+  }
+
+  function onAdCompleted() {
+    state.cristales += 3;
+    state.adsWatchedToday += 1;
+    renderState();
+    showToast("+3 cristales");
+
+    // Aqui deberias avisar a tu backend para que quede registrado
+    // fetch(BACKEND_URL + "/ad-completed", {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify({ telegram_id: tg.initDataUnsafe.user.id })
+    // });
+  }
+
+  // ============================================
+  // Regalar objeto
+  // ============================================
+  function sendGift() {
+    if (state.cristales < 1) {
+      showToast("No tienes cristales para regalar");
+      return;
+    }
+    state.cristales -= 1;
+    state.giftsSentToday += 1;
+    renderState();
+    showToast("Regalo enviado a Maria 🎁");
+
+    // Aqui llamas a tu backend real:
+    // fetch(BACKEND_URL + "/send-gift", { ... });
+  }
+
+  // ============================================
+  // Arranque
+  // ============================================
+  initUser();
+  renderState();
+</script>
+
+</body>
+</html>
