@@ -207,22 +207,29 @@
   </div>
 
   <div class="section-title">Regalar a un amigo</div>
-  <div class="gift-box">
-    <div class="friend-avatar">M</div>
-    <div>
-      <div class="friend-name">Maria</div>
-      <div class="friend-sub">3 regalos esta semana</div>
-    </div>
-    <button onclick="sendGift()">Regalar</button>
+  <div class="gift-box" style="flex-direction:column;align-items:stretch;">
+    <input id="giftUsername" type="text" placeholder="username de tu amigo (sin @)"
+      style="background:#0f0f14;border:1px solid #3a3a45;border-radius:10px;color:white;padding:10px 12px;font-size:13px;">
+    <button onclick="sendGift()" style="margin-left:0;width:100%;height:38px;background:#6c5ce7;border:none;">Regalar 1 cristal</button>
   </div>
 
   <div class="nav">
-    <div class="active">🏠</div>
-    <div>🎁</div>
-    <div>🏆</div>
-    <div>👤</div>
+    <div class="active" id="navHome" onclick="showTab('home')">🏠</div>
+    <div id="navTrophy" onclick="showTab('leaderboard')">🏆</div>
+    <div id="navProfile" onclick="showTab('profile')">👤</div>
   </div>
 
+</div>
+
+<!-- Overlay para leaderboard / perfil -->
+<div id="overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:50;overflow-y:auto;">
+  <div style="max-width:420px;margin:0 auto;padding:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h2 id="overlayTitle" style="font-size:16px;">Ranking</h2>
+      <button onclick="closeOverlay()" style="background:#1a1a22;border:1px solid #3a3a45;color:white;border-radius:8px;height:32px;width:32px;">✕</button>
+    </div>
+    <div id="overlayContent"></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -375,6 +382,13 @@
   // Regalar objeto
   // ============================================
   async function sendGift() {
+    const usernameInput = document.getElementById("giftUsername");
+    const receiverUsername = usernameInput.value.trim().replace("@", "");
+
+    if (!receiverUsername) {
+      showToast("Escribe el username de tu amigo");
+      return;
+    }
     if (state.cristales < 1) {
       showToast("No tienes cristales para regalar");
       return;
@@ -386,7 +400,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sender_id: currentUser.telegram_id,
-          receiver_username: "maria", // reemplaza esto cuando tengas seleccion real de amigos
+          receiver_username: receiverUsername,
           item_type_id: 1,
           quantity: 1
         })
@@ -406,6 +420,7 @@
 
       renderState();
       showToast("Regalo enviado 🎁");
+      usernameInput.value = "";
 
       if (data.mission_completed) {
         showToast("Mision completada: +1 huevo extra");
@@ -413,6 +428,77 @@
     } catch (err) {
       console.error("Error enviando regalo:", err);
       showToast("No se pudo conectar al servidor");
+    }
+  }
+
+  // ============================================
+  // Navegacion inferior (ranking / perfil)
+  // ============================================
+  function closeOverlay() {
+    document.getElementById("overlay").style.display = "none";
+    document.getElementById("navHome").classList.add("active");
+    document.getElementById("navTrophy").classList.remove("active");
+    document.getElementById("navProfile").classList.remove("active");
+  }
+
+  async function showTab(tab) {
+    const overlay = document.getElementById("overlay");
+    const title = document.getElementById("overlayTitle");
+    const content = document.getElementById("overlayContent");
+
+    document.getElementById("navHome").classList.toggle("active", tab === "home");
+    document.getElementById("navTrophy").classList.toggle("active", tab === "leaderboard");
+    document.getElementById("navProfile").classList.toggle("active", tab === "profile");
+
+    if (tab === "home") {
+      overlay.style.display = "none";
+      return;
+    }
+
+    overlay.style.display = "block";
+
+    if (tab === "leaderboard") {
+      title.textContent = "🏆 Ranking de generosidad";
+      content.innerHTML = "<p style='color:#9a9aa5;font-size:13px;'>Cargando...</p>";
+      try {
+        const res = await fetch(BACKEND_URL + "/leaderboard");
+        const data = await res.json();
+        if (!data.leaderboard || data.leaderboard.length === 0) {
+          content.innerHTML = "<p style='color:#9a9aa5;font-size:13px;'>Todavia nadie ha regalado nada. ¡Se el primero!</p>";
+          return;
+        }
+        content.innerHTML = data.leaderboard.map((u, i) => `
+          <div style="display:flex;align-items:center;gap:12px;background:#1a1a22;border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+            <span style="font-weight:700;color:#6c5ce7;width:20px;">#${i + 1}</span>
+            <span style="flex:1;font-size:14px;">${u.first_name || u.username || "Jugador"}</span>
+            <span style="font-size:13px;color:#9a9aa5;">${u.total_gifts_sent} regalos</span>
+          </div>
+        `).join("");
+      } catch (err) {
+        content.innerHTML = "<p style='color:#ff6b6b;font-size:13px;'>No se pudo cargar el ranking.</p>";
+      }
+    }
+
+    if (tab === "profile") {
+      title.textContent = "👤 Tu perfil";
+      content.innerHTML = `
+        <div style="background:#1a1a22;border-radius:14px;padding:16px;">
+          <p style="font-size:14px;font-weight:600;margin-bottom:4px;">${currentUser.first_name}</p>
+          <p style="font-size:12px;color:#9a9aa5;margin-bottom:14px;">@${currentUser.username || "sin_username"}</p>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-top:1px solid #26262e;">
+            <span style="color:#9a9aa5;">Racha actual</span><span>${state.streak} dias</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-top:1px solid #26262e;">
+            <span style="color:#9a9aa5;">Cristales</span><span>${state.cristales}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-top:1px solid #26262e;">
+            <span style="color:#9a9aa5;">Huevos</span><span>${state.huevos}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-top:1px solid #26262e;">
+            <span style="color:#9a9aa5;">Capturas</span><span>${state.capturas}</span>
+          </div>
+        </div>
+      `;
     }
   }
 
