@@ -8,6 +8,9 @@
 <!-- SDK oficial de Telegram para Mini Apps -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
+<!-- SDK de Monetag (anuncios con recompensa) -->
+<script src='//libtl.com/sdk.js' data-zone='11612807' data-sdk='show_11612807'></script>
+
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -284,15 +287,28 @@
     btn.disabled = true;
     btn.textContent = "Cargando anuncio...";
 
-    // Cuando integres Monetag, aqui llamas su funcion de rewarded ad, ej:
-    // show_9331715().then(() => { onAdCompleted(); });
-
-    // Simulacion temporal mientras no tienes Monetag conectado:
-    setTimeout(() => {
-      onAdCompleted();
+    // Llama al SDK real de Monetag (zona 11612807 - Rewarded Interstitial).
+    // show_11612807() devuelve una Promise que se resuelve cuando el
+    // usuario completa la vista del anuncio (o pasan los 15s minimos).
+    if (typeof show_11612807 === "function") {
+      show_11612807().then(() => {
+        onAdCompleted();
+        btn.disabled = false;
+        btn.textContent = "▶️ Ver anuncio: +3 cristales";
+      }).catch((err) => {
+        // El usuario cerro el anuncio antes de tiempo o hubo un error
+        console.error("Ad error:", err);
+        showToast("No se pudo completar el anuncio");
+        btn.disabled = false;
+        btn.textContent = "▶️ Ver anuncio: +3 cristales";
+      });
+    } else {
+      // El SDK de Monetag aun no cargo (puede pasar la primera vez que
+      // abres la app). Reintenta en un momento.
+      showToast("Cargando anuncios, intenta de nuevo en unos segundos");
       btn.disabled = false;
       btn.textContent = "▶️ Ver anuncio: +3 cristales";
-    }, 1500);
+    }
   }
 
   function onAdCompleted() {
