@@ -238,12 +238,12 @@
   }
 
   // ============================================
-  // URL de tu backend (cambia esto por tu URL de Render)
+  // URL de tu backend en Render (CAMBIA ESTO por tu URL real)
   // ============================================
   const BACKEND_URL = "https://TU-BACKEND.onrender.com";
 
   // ============================================
-  // Estado local del jugador (se reemplaza con datos reales del backend)
+  // Estado del jugador (se llena con datos reales del backend)
   // ============================================
   let state = {
     cristales: 0,
@@ -254,13 +254,48 @@
     giftsSentToday: 0
   };
 
-  function initUser() {
-    let name = "Jugador";
+  let currentUser = { telegram_id: null, username: null, first_name: "Jugador" };
+
+  async function initUser() {
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-      name = tg.initDataUnsafe.user.first_name || "Jugador";
+      const u = tg.initDataUnsafe.user;
+      currentUser.telegram_id = u.id;
+      currentUser.username = u.username || null;
+      currentUser.first_name = u.first_name || "Jugador";
+    } else {
+      // Fuera de Telegram (pruebas en navegador): usa un ID de prueba fijo
+      currentUser.telegram_id = 999999999;
+      currentUser.username = "test_user";
+      currentUser.first_name = "Jugador de prueba";
     }
-    document.getElementById("userName").textContent = "Hola, " + name;
-    document.getElementById("avatarLetter").textContent = name.charAt(0).toUpperCase();
+
+    document.getElementById("userName").textContent = "Hola, " + currentUser.first_name;
+    document.getElementById("avatarLetter").textContent = currentUser.first_name.charAt(0).toUpperCase();
+
+    try {
+      const res = await fetch(BACKEND_URL + "/user/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegram_id: currentUser.telegram_id,
+          username: currentUser.username,
+          first_name: currentUser.first_name
+        })
+      });
+      const data = await res.json();
+
+      state.cristales = data.inventory.cristales;
+      state.huevos = data.inventory.huevos;
+      state.capturas = data.inventory.capturas;
+      state.streak = data.streak;
+      state.adsWatchedToday = data.missions.ads_watched_today;
+      state.giftsSentToday = data.missions.gifts_sent_today;
+
+      renderState();
+    } catch (err) {
+      console.error("Error conectando al backend:", err);
+      showToast("No se pudo conectar al servidor");
+    }
   }
 
   function renderState() {
@@ -293,12 +328,11 @@
     if (typeof show_11612807 === "function") {
       show_11612807().then(() => {
         onAdCompleted();
-        btn.disabled = false;
-        btn.textContent = "▶️ Ver anuncio: +3 cristales";
       }).catch((err) => {
         // El usuario cerro el anuncio antes de tiempo o hubo un error
         console.error("Ad error:", err);
         showToast("No se pudo completar el anuncio");
+      }).finally(() => {
         btn.disabled = false;
         btn.textContent = "▶️ Ver anuncio: +3 cristales";
       });
@@ -311,35 +345,75 @@
     }
   }
 
-  function onAdCompleted() {
-    state.cristales += 3;
-    state.adsWatchedToday += 1;
-    renderState();
-    showToast("+3 cristales");
+  async function onAdCompleted() {
+    try {
+      const res = await fetch(BACKEND_URL + "/ad-completed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telegram_id: currentUser.telegram_id, ad_network: "monetag" })
+      });
+      const data = await res.json();
 
-    // Aqui deberias avisar a tu backend para que quede registrado
-    // fetch(BACKEND_URL + "/ad-completed", {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ telegram_id: tg.initDataUnsafe.user.id })
-    // });
+      state.cristales = data.inventory.cristales;
+      state.huevos = data.inventory.huevos;
+      state.capturas = data.inventory.capturas;
+      state.adsWatchedToday = data.mission_progress;
+
+      renderState();
+      showToast("+" + data.reward_quantity + " cristales");
+
+      if (data.mission_completed) {
+        showToast("Mision completada: +5 cristales extra");
+      }
+    } catch (err) {
+      console.error("Error guardando recompensa:", err);
+      showToast("No se pudo guardar tu recompensa, intenta de nuevo");
+    }
   }
 
   // ============================================
   // Regalar objeto
   // ============================================
-  function sendGift() {
+  async function sendGift() {
     if (state.cristales < 1) {
       showToast("No tienes cristales para regalar");
       return;
     }
-    state.cristales -= 1;
-    state.giftsSentToday += 1;
-    renderState();
-    showToast("Regalo enviado a Maria 🎁");
 
-    // Aqui llamas a tu backend real:
-    // fetch(BACKEND_URL + "/send-gift", { ... });
+    try {
+      const res = await fetch(BACKEND_URL + "/send-gift", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender_id: currentUser.telegram_id,
+          receiver_username: "maria", // reemplaza esto cuando tengas seleccion real de amigos
+          item_type_id: 1,
+          quantity: 1
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        showToast(errData.detail || "No se pudo enviar el regalo");
+        return;
+      }
+
+      const data = await res.json();
+      state.cristales = data.inventory.cristales;
+      state.huevos = data.inventory.huevos;
+      state.capturas = data.inventory.capturas;
+      state.giftsSentToday = data.mission_progress;
+
+      renderState();
+      showToast("Regalo enviado 🎁");
+
+      if (data.mission_completed) {
+        showToast("Mision completada: +1 huevo extra");
+      }
+    } catch (err) {
+      console.error("Error enviando regalo:", err);
+      showToast("No se pudo conectar al servidor");
+    }
   }
 
   // ============================================
