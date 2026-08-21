@@ -169,8 +169,13 @@
       <div class="name" id="userName">Hola, Jugador</div>
       <div class="streak" id="streakText">🔥 Racha: 0 dias</div>
     </div>
-    <div class="avatar" id="avatarLetter">?</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span onclick="toggleDebugPanel()" style="font-size:16px;cursor:pointer;color:#6b6b75;">🛠️</span>
+      <div class="avatar" id="avatarLetter">?</div>
+    </div>
   </div>
+
+  <div id="debugPanel" style="display:none;margin:0 16px 12px;background:#000;border:1px solid #3a3a45;border-radius:10px;padding:10px;font-family:monospace;font-size:10px;color:#00ff88;max-height:200px;overflow-y:auto;white-space:pre-wrap;"></div>
 
   <!-- VISTA: INICIO -->
   <div id="viewHome">
@@ -293,6 +298,9 @@
     document.getElementById("userName").textContent = "Hola, " + currentUser.first_name;
     document.getElementById("avatarLetter").textContent = currentUser.first_name.charAt(0).toUpperCase();
 
+    debugLog("Iniciando... telegram_id=" + currentUser.telegram_id);
+    debugLog("Conectando a: " + BACKEND_URL + "/user/init");
+
     try {
       const res = await fetch(BACKEND_URL + "/user/init", {
         method: "POST",
@@ -304,7 +312,18 @@
           referred_by: referredBy
         })
       });
+
+      debugLog("Respuesta init: HTTP " + res.status);
+
+      if (!res.ok) {
+        const errText = await res.text();
+        debugLog("ERROR init: " + errText);
+        showToast("Error del servidor (" + res.status + ")");
+        return;
+      }
+
       const data = await res.json();
+      debugLog("Datos recibidos OK: " + data.inventory.cristales + " cristales");
 
       state.cristales = data.inventory.cristales;
       state.huevos = data.inventory.huevos;
@@ -317,7 +336,7 @@
 
       renderState();
     } catch (err) {
-      console.error("Error conectando al backend:", err);
+      debugLog("ERROR de conexion en init: " + err.message);
       showToast("No se pudo conectar al servidor");
     }
   }
@@ -368,6 +387,28 @@
   }
 
   // ============================================
+  // Panel de diagnostico visible (sin necesidad de F12)
+  // ============================================
+  let debugLines = [];
+  function debugLog(msg) {
+    const time = new Date().toLocaleTimeString();
+    debugLines.push(`[${time}] ${msg}`);
+    if (debugLines.length > 30) debugLines.shift();
+    const panel = document.getElementById("debugPanel");
+    if (panel && panel.style.display !== "none") {
+      panel.textContent = debugLines.join("\n");
+      panel.scrollTop = panel.scrollHeight;
+    }
+    console.log(msg);
+  }
+  function toggleDebugPanel() {
+    const panel = document.getElementById("debugPanel");
+    const visible = panel.style.display === "block";
+    panel.style.display = visible ? "none" : "block";
+    panel.textContent = debugLines.join("\n") || "(sin actividad todavia)";
+  }
+
+  // ============================================
   // Ver anuncio (aqui se conecta con Monetag)
   // ============================================
   function watchAd() {
@@ -378,12 +419,16 @@
     // Llama al SDK real de Monetag (zona 11612807 - Rewarded Interstitial).
     // show_11612807() devuelve una Promise que se resuelve cuando el
     // usuario completa la vista del anuncio (o pasan los 15s minimos).
+    debugLog("Boton tocado, buscando SDK...");
+
     if (typeof show_11612807 === "function") {
+      debugLog("SDK encontrado, mostrando anuncio...");
       show_11612807().then(() => {
+        debugLog("Anuncio completado, avisando al servidor...");
         onAdCompleted();
       }).catch((err) => {
         // El usuario cerro el anuncio antes de tiempo o hubo un error
-        console.error("Ad error:", err);
+        debugLog("ERROR del anuncio: " + (err && err.message ? err.message : JSON.stringify(err)));
         showToast("No se pudo completar el anuncio");
       }).finally(() => {
         btn.disabled = false;
@@ -392,6 +437,7 @@
     } else {
       // El SDK de Monetag aun no cargo (puede pasar la primera vez que
       // abres la app). Reintenta en un momento.
+      debugLog("ERROR: el SDK de Monetag (show_11612807) no existe todavia");
       showToast("Cargando anuncios, intenta de nuevo en unos segundos");
       btn.disabled = false;
       btn.textContent = "▶️ Ver anuncio: +3 cristales";
@@ -399,13 +445,25 @@
   }
 
   async function onAdCompleted() {
+    debugLog("Llamando a: " + BACKEND_URL + "/ad-completed");
     try {
       const res = await fetch(BACKEND_URL + "/ad-completed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ telegram_id: currentUser.telegram_id, ad_network: "monetag" })
       });
+
+      debugLog("Respuesta del servidor: HTTP " + res.status);
+
+      if (!res.ok) {
+        const errText = await res.text();
+        debugLog("ERROR del servidor: " + errText);
+        showToast("Error del servidor (" + res.status + ")");
+        return;
+      }
+
       const data = await res.json();
+      debugLog("Recompensa recibida: +" + data.reward_quantity + " cristales");
 
       state.cristales = data.inventory.cristales;
       state.huevos = data.inventory.huevos;
@@ -419,7 +477,7 @@
         showToast("¡Bono diario desbloqueado! +15 cristales extra");
       }
     } catch (err) {
-      console.error("Error guardando recompensa:", err);
+      debugLog("ERROR de conexion: " + err.message);
       showToast("No se pudo guardar tu recompensa, intenta de nuevo");
     }
   }
