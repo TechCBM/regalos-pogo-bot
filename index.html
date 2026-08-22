@@ -291,30 +291,6 @@
   }
 
   // ============================================
-  // Anuncio automatico In-App Interstitial (Monetag)
-  // No da recompensa, es distinto al rewarded de watchAd().
-  // Se dispara solo segun estos parametros:
-  //   - 1 anuncio cada ~0.166 horas (10 min)
-  //   - 30s de espera antes del primero (le da tiempo al usuario de usar la app)
-  //   - everyPage:false -> la sesion de frecuencia persiste al navegar entre tabs
-  // Se llama una sola vez al arrancar la app.
-  // ============================================
-  if (typeof show_11612807 === "function") {
-    show_11612807({
-      type: 'inApp',
-      inAppSettings: {
-        frequency: 10,
-        capping: 1,
-        interval: 300,
-        timeout: 90,
-        everyPage: false
-      }
-    });
-  } else {
-    debugLog ? debugLog("Monetag SDK no disponible para in-app interstitial") : console.warn("Monetag SDK no disponible para in-app interstitial");
-  }
-
-  // ============================================
   // URL de tu backend en Render (CAMBIA ESTO por tu URL real)
   // ============================================
   const BACKEND_URL = "https://regalos-pogo-backend.onrender.com";
@@ -930,12 +906,34 @@
           <div>
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🥚 Huevos y Boost x2</p>
             <ul style="font-size:13px;color:#d0d0d8;line-height:1.6;padding-left:18px;">
-              <li>Regalar 1 objeto a un amigo (una vez al dia): +1 huevo</li>
-              <li>Premio de bienvenida diario: +1 huevo extra cada 3 dias de racha</li>
+              <li>Ver anuncios: <b>+1 huevo cada 10 anuncios vistos</b> en total</li>
+              <li>Subir de nivel: algunos niveles regalan huevos extra</li>
             </ul>
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;margin-top:8px;">
               Gasta 🥚 3 huevos y activa un Boost x2 que duplica las PokéMonedas que ganas viendo anuncios durante 1 hora.
+              El boost no da puntos directos, pero ver mas anuncios gracias a el si suma mas puntos de a poco.
             </p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">💱 Canjear PokéMonedas por puntos</p>
+            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
+              Desde tu Perfil puedes cambiar tus PokéMonedas por puntos del ranking semanal:
+              <b>${COINS_PER_POINT} PokéMonedas = 1 punto</b>. Hay un tope de
+              <b>${MAX_REDEEM_POINTS_PER_DAY} puntos por dia</b> por jugador, para que sea parejo entre
+              todos sin importar cuantas monedas tengas guardadas.
+            </p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">⭐ Niveles</p>
+            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;margin-bottom:8px;">
+              Tus capturas acumuladas de por vida te suben de nivel. Cada nivel da una recompensa unica
+              (monedas, huevos o boost gratis) que no afecta el ranking semanal — es solo progreso personal.
+            </p>
+            <ul style="font-size:12px;color:#9a9aa5;line-height:1.7;padding-left:18px;">
+              ${LEVEL_THRESHOLDS.map(l => `<li>Nivel ${l.level} (${l.capturesRequired} capturas): ${l.label}</li>`).join("")}
+            </ul>
           </div>
 
           <div>
@@ -943,7 +941,8 @@
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
               Son trofeos de logro. Ganas una al completar tus 25 anuncios del dia, y otra extra cada 7 dias
               de racha con el premio de bienvenida. No dan puntos por si solas, pero completar el bono de
-              anuncios (que es lo que te las da) si suma <b>+10 puntos</b> al ranking.
+              anuncios (que es lo que te las da) si suma <b>+10 puntos</b> al ranking. Ademas, acumularlas
+              te sube de nivel (ver seccion de Niveles).
             </p>
           </div>
 
