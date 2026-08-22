@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<!-- BUILD-VERSION: v9-friends-cooldown-2026-08-22 -->
+<!-- BUILD-VERSION: v11-reward-range-fix-2026-08-22 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Regalos GO</title>
@@ -200,12 +200,12 @@
         <div class="qty" id="qtyCristales">0</div>
         <div class="label">PokéMonedas</div>
       </div>
-      <div class="item-card" onclick="showTab('boost')" style="cursor:pointer;">
+      <div class="item-card">
         <div class="icon">🥚</div>
         <div class="qty" id="qtyHuevos">0</div>
         <div class="label">Huevos</div>
       </div>
-      <div class="item-card" onclick="showTab('capturas')" style="cursor:pointer;">
+      <div class="item-card">
         <div class="icon">🎯</div>
         <div class="qty" id="qtyCapturas">0</div>
         <div class="label">Capturas</div>
@@ -215,9 +215,12 @@
     <div id="boostBanner" style="display:none;margin:0 16px 12px;background:linear-gradient(135deg,#fdcb6e,#e17055);border-radius:12px;padding:10px 14px;font-size:12px;font-weight:600;text-align:center;">
       ⚡ Boost x2 activo
     </div>
+    <button id="activateBoostBtn" onclick="activateBoost()" style="display:none;width:calc(100% - 32px);margin:0 16px 12px;height:40px;background:linear-gradient(135deg,#fdcb6e,#e17055);border:none;border-radius:12px;color:#2d2410;font-weight:700;font-size:13px;">
+      ⚡ Activar Boost x2 (3 🥚)
+    </button>
 
     <button class="ad-button" id="watchAdBtn" onclick="watchAd()">
-      ▶️ Ver anuncio: +3 PokéMonedas
+      ▶️ Ver anuncio: +2 a +4 PokéMonedas
     </button>
 
     <div class="section-title">Bono diario</div>
@@ -439,6 +442,7 @@
 
     const boostActive = state.boostActiveUntil && new Date(state.boostActiveUntil) > new Date();
     document.getElementById("boostBanner").style.display = boostActive ? "block" : "none";
+    document.getElementById("activateBoostBtn").style.display = boostActive ? "none" : "block";
   }
 
   async function activateBoost() {
@@ -460,7 +464,6 @@
       state.boostActiveUntil = data.boost_active_until;
       renderState();
       showToast("⚡ Boost x2 activado por 1 hora");
-      showTab("boost"); // refresca la vista para mostrar el boost activo
     } catch (err) {
       console.error("Error activando boost:", err);
       showToast("No se pudo conectar al servidor");
@@ -538,7 +541,7 @@
     let remaining = Math.ceil(seconds);
     if (remaining <= 0) {
       btn.disabled = false;
-      btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
+      btn.textContent = "▶️ Ver anuncio: +2 a +4 PokéMonedas";
       return;
     }
 
@@ -556,7 +559,7 @@
         clearInterval(adCooldownInterval);
         adCooldownInterval = null;
         btn.disabled = false;
-        btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
+        btn.textContent = "▶️ Ver anuncio: +2 a +4 PokéMonedas";
       } else {
         renderCooldown();
       }
@@ -582,7 +585,7 @@
       debugLog("ERROR del anuncio (" + network.name + "): " + (err && err.message ? err.message : JSON.stringify(err)));
       showToast("No se pudo completar el anuncio, intenta de nuevo");
       btn.disabled = false;
-      btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
+      btn.textContent = "▶️ Ver anuncio: +2 a +4 PokéMonedas";
     });
   }
 
@@ -613,7 +616,7 @@
         showToast("Error del servidor (" + res.status + ")");
         const btn = document.getElementById("watchAdBtn");
         btn.disabled = false;
-        btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
+        btn.textContent = "▶️ Ver anuncio: +2 a +4 PokéMonedas";
         return;
       }
 
@@ -638,7 +641,7 @@
       showToast("No se pudo guardar tu recompensa, intenta de nuevo");
       const btn = document.getElementById("watchAdBtn");
       btn.disabled = false;
-      btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
+      btn.textContent = "▶️ Ver anuncio: +2 a +4 PokéMonedas";
     }
   }
 
@@ -769,7 +772,7 @@
     document.getElementById("navHome").classList.toggle("active", tab === "home");
     document.getElementById("navTrophy").classList.toggle("active", tab === "leaderboard");
     document.getElementById("navRules").classList.toggle("active", tab === "rules");
-    document.getElementById("navProfile").classList.toggle("active", tab === "profile" || tab === "boost" || tab === "capturas");
+    document.getElementById("navProfile").classList.toggle("active", tab === "profile");
 
     if (tab === "home") {
       viewHome.style.display = "block";
@@ -808,19 +811,6 @@
       } catch (err) {
         content.innerHTML = viewHeader("🏆 Ranking semanal") + "<p style='color:#ff6b6b;font-size:13px;'>No se pudo cargar el ranking.</p>";
       }
-    }
-
-    if (tab === "boost") {
-      const boostActive = state.boostActiveUntil && new Date(state.boostActiveUntil) > new Date();
-      content.innerHTML = viewHeader("⚡ Boost x2") + `
-        <div style="background:#1a1a22;border-radius:14px;padding:16px;">
-          ${boostActive
-            ? `<div style="background:#2d2410;border:1px solid #fdcb6e;border-radius:10px;padding:12px;text-align:center;font-size:13px;color:#fdcb6e;">⚡ Ya tienes un boost activo</div>`
-            : `<button onclick="activateBoost()" style="width:100%;height:44px;background:linear-gradient(135deg,#fdcb6e,#e17055);border:none;border-radius:10px;color:#2d2410;font-weight:700;font-size:14px;">Activar boost (3 🥚)</button>`
-          }
-          <p style="font-size:12px;color:#6b6b75;margin-top:12px;text-align:center;cursor:pointer;" onclick="showTab('rules')">📜 Ver como funciona en Reglas</p>
-        </div>
-      `;
     }
 
     if (tab === "rules") {
@@ -905,17 +895,6 @@
             </p>
           </div>
 
-        </div>
-      `;
-    }
-
-    if (tab === "capturas") {
-      content.innerHTML = viewHeader("🎯 Capturas") + `
-        <div style="background:#1a1a22;border-radius:14px;padding:16px;">
-          <div style="text-align:center;font-size:28px;">
-            🎯 <span style="font-size:20px;font-weight:700;">${state.capturas}</span>
-          </div>
-          <p style="font-size:12px;color:#6b6b75;margin-top:12px;text-align:center;cursor:pointer;" onclick="showTab('rules')">📜 Ver como funciona en Reglas</p>
         </div>
       `;
     }
