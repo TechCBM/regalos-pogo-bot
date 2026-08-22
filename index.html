@@ -194,9 +194,6 @@
 
   <!-- VISTA: INICIO -->
   <div id="viewHome">
-    <div style="background:#00c853;color:#000;text-align:center;font-weight:900;font-size:14px;padding:10px;">
-      ✅ VERSION NUEVA CARGADA — V12
-    </div>
     <div class="inventory">
       <div class="item-card">
         <div class="icon">🪙</div>
@@ -306,10 +303,10 @@
     show_11612807({
       type: 'inApp',
       inAppSettings: {
-        frequency: 1,
-        capping: 0.166,
-        interval: 30,
-        timeout: 30,
+        frequency: 10,
+        capping: 1,
+        interval: 300,
+        timeout: 90,
         everyPage: false
       }
     });
@@ -476,7 +473,7 @@
       });
       if (!res.ok) {
         const errData = await res.json();
-        showToast(errData.detail || "No se pudo activar el boost");
+        showToast(errData.detail || "No se pudo activar el boost", 4000);
         return;
       }
       const data = await res.json();
@@ -492,11 +489,11 @@
     }
   }
 
-  function showToast(msg) {
+  function showToast(msg, duration) {
     const t = document.getElementById("toast");
     t.textContent = msg;
     t.style.display = "block";
-    setTimeout(() => { t.style.display = "none"; }, 2000);
+    setTimeout(() => { t.style.display = "none"; }, duration || 2000);
   }
 
   function toggleDebugPanel() {
@@ -637,6 +634,10 @@
 
       renderState();
       showToast("+" + data.reward_quantity + " PokéMonedas");
+
+      if (data.earned_egg) {
+        setTimeout(() => showToast("🥚 +1 huevo (cada 10 anuncios)", 3000), 2200);
+      }
 
       if (data.mission_completed) {
         showToast("¡Bono diario desbloqueado! +15 PokéMonedas extra");
