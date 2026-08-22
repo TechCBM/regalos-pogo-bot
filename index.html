@@ -387,6 +387,10 @@
 
       renderState();
 
+      if (data.ad_cooldown_seconds_remaining > 0) {
+        startAdCooldown(data.ad_cooldown_seconds_remaining);
+      }
+
       if (data.daily_reward) {
         showDailyRewardModal(data.daily_reward);
       }
@@ -521,8 +525,44 @@
 
   let adNetworkIndex = 0;
 
+  let adCooldownInterval = null;
+
+  function startAdCooldown(seconds) {
+    const btn = document.getElementById("watchAdBtn");
+    if (adCooldownInterval) clearInterval(adCooldownInterval);
+
+    let remaining = Math.ceil(seconds);
+    if (remaining <= 0) {
+      btn.disabled = false;
+      btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
+      return;
+    }
+
+    function renderCooldown() {
+      const m = Math.floor(remaining / 60);
+      const s = remaining % 60;
+      btn.disabled = true;
+      btn.textContent = `⏳ Disponible en ${m}:${s.toString().padStart(2, "0")}`;
+    }
+
+    renderCooldown();
+    adCooldownInterval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(adCooldownInterval);
+        adCooldownInterval = null;
+        btn.disabled = false;
+        btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
+      } else {
+        renderCooldown();
+      }
+    }, 1000);
+  }
+
   function watchAd() {
     const btn = document.getElementById("watchAdBtn");
+    if (btn.disabled) return; // en cooldown, no hacer nada
+
     btn.disabled = true;
     btn.textContent = "Cargando anuncio...";
 
@@ -537,7 +577,6 @@
     }).catch((err) => {
       debugLog("ERROR del anuncio (" + network.name + "): " + (err && err.message ? err.message : JSON.stringify(err)));
       showToast("No se pudo completar el anuncio, intenta de nuevo");
-    }).finally(() => {
       btn.disabled = false;
       btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
     });
@@ -554,10 +593,23 @@
 
       debugLog("Respuesta del servidor: HTTP " + res.status);
 
+      if (res.status === 429) {
+        const errData = await res.json().catch(() => null);
+        const secondsRemaining = errData && errData.detail && errData.detail.seconds_remaining
+          ? errData.detail.seconds_remaining
+          : 600;
+        showToast("Todavia en cooldown, espera un poco");
+        startAdCooldown(secondsRemaining);
+        return;
+      }
+
       if (!res.ok) {
         const errText = await res.text();
         debugLog("ERROR del servidor: " + errText);
         showToast("Error del servidor (" + res.status + ")");
+        const btn = document.getElementById("watchAdBtn");
+        btn.disabled = false;
+        btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
         return;
       }
 
@@ -575,9 +627,14 @@
       if (data.mission_completed) {
         showToast("¡Bono diario desbloqueado! +15 PokéMonedas extra");
       }
+
+      startAdCooldown(data.cooldown_seconds || 600);
     } catch (err) {
       debugLog("ERROR de conexion: " + err.message);
       showToast("No se pudo guardar tu recompensa, intenta de nuevo");
+      const btn = document.getElementById("watchAdBtn");
+      btn.disabled = false;
+      btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
     }
   }
 
@@ -748,33 +805,60 @@
         <div style="background:#1a1a22;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:16px;">
 
           <div>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🎮 De que trata Regalos GO</p>
+            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
+              Cada dia que entras y juegas ganas <b>PokéMonedas</b> 🪙, <b>huevos</b> 🥚 y <b>capturas</b> 🎯.
+              Todo lo que hagas en la app tambien te suma puntos al ranking semanal: cuanto mas juegas,
+              mas arriba subes, y los mejores de la semana ganan el premio.
+            </p>
+          </div>
+
+          <div>
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🏆 ¿Quien gana el premio?</p>
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">${winnersLine} El ranking se reinicia cada lunes.</p>
           </div>
 
           <div>
-            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🪙 Como ganar PokéMonedas</p>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🏅 Como se ganan los puntos del ranking</p>
             <ul style="font-size:13px;color:#d0d0d8;line-height:1.6;padding-left:18px;">
-              <li>Ver anuncios: +2 a +4 PokéMonedas cada uno (hasta 25 al dia)</li>
-              <li>Completar los 25 anuncios del dia: +15 PokéMonedas de bono, y ademas te regala 1 captura 🎯</li>
-              <li>Entrar cada dia a la app: premio de bienvenida automatico (PokéMonedas, y huevos o capturas segun tu racha)</li>
-              <li>Invitar amigos: +10 PokéMonedas por cada amigo que abra la app por primera vez usando tu link</li>
+              <li>Ver un anuncio: <b>+1 punto</b></li>
+              <li>Completar los 25 anuncios del dia: <b>+10 puntos</b> extra</li>
+              <li>Entrar a la app cada dia (premio de bienvenida): <b>+3 puntos</b></li>
+              <li>Regalar 1 objeto a un amigo: <b>+2 puntos</b></li>
+              <li>Invitar a un amigo nuevo: <b>+5 puntos</b></li>
             </ul>
           </div>
 
           <div>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🪙 Como ganar PokéMonedas</p>
+            <ul style="font-size:13px;color:#d0d0d8;line-height:1.6;padding-left:18px;">
+              <li>Ver anuncios: +2 a +4 PokéMonedas cada uno (hasta 25 al dia, con un descanso de 10 minutos entre cada uno)</li>
+              <li>Completar los 25 anuncios del dia: +15 PokéMonedas de bono, y ademas te regala 1 captura 🎯</li>
+              <li>Entrar cada dia a la app: premio de bienvenida automatico de 5 a 15 PokéMonedas</li>
+              <li>Invitar amigos: +10 PokéMonedas por cada amigo que abra la app por primera vez usando tu link</li>
+            </ul>
+            <p style="font-size:12px;color:#6b6b75;margin-top:8px;">
+              ⏳ Los anuncios tienen un descanso de 10 minutos entre uno y otro, para que cuenten como vistas reales.
+            </p>
+          </div>
+
+          <div>
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🥚 Huevos y Boost x2</p>
-            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
-              Ganas huevos regalando objetos y con tu racha de entradas diarias. Gasta 3 huevos para activar
-              un Boost x2 que duplica las PokéMonedas que ganas viendo anuncios durante 1 hora.
+            <ul style="font-size:13px;color:#d0d0d8;line-height:1.6;padding-left:18px;">
+              <li>Regalar 1 objeto a un amigo (una vez al dia): +1 huevo</li>
+              <li>Premio de bienvenida diario: +1 huevo extra cada 3 dias de racha</li>
+            </ul>
+            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;margin-top:8px;">
+              Gasta 🥚 3 huevos y activa un Boost x2 que duplica las PokéMonedas que ganas viendo anuncios durante 1 hora.
             </p>
           </div>
 
           <div>
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🎯 Capturas</p>
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
-              Son trofeos de logro. Cada captura suma 10 puntos extra al ranking semanal, asi que son tu forma
-              mas rapida de subir posiciones.
+              Son trofeos de logro. Ganas una al completar tus 25 anuncios del dia, y otra extra cada 7 dias
+              de racha con el premio de bienvenida. No dan puntos por si solas, pero completar el bono de
+              anuncios (que es lo que te las da) si suma <b>+10 puntos</b> al ranking.
             </p>
           </div>
 
