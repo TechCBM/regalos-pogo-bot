@@ -14,11 +14,19 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
+  :root {
+    --pkm-red: #E3350D;
+    --pkm-red-dark: #B02A0C;
+    --pkm-blue: #2A75BB;
+    --pkm-gold: #FFCB05;
+    --pkm-gold-dark: #B3A125;
+  }
+
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #0f0f14;
+    background: #101820;
     color: #ffffff;
-    padding-bottom: 20px;
+    padding-bottom: 76px;
   }
 
   .app {
@@ -38,7 +46,7 @@
   .header .streak { font-size: 12px; color: #9a9aa5; margin-top: 2px; }
   .avatar {
     width: 38px; height: 38px; border-radius: 50%;
-    background: #6c5ce7; display: flex; align-items: center; justify-content: center;
+    background: var(--pkm-red); display: flex; align-items: center; justify-content: center;
     font-weight: 600; font-size: 14px;
   }
 
@@ -62,7 +70,7 @@
   /* BOTON ANUNCIO */
   .ad-button {
     margin: 0 16px 16px;
-    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    background: linear-gradient(135deg, var(--pkm-red), #FF7A45);
     border: none;
     border-radius: 14px;
     height: 50px;
@@ -95,7 +103,7 @@
     align-items: center;
     font-size: 13px;
   }
-  .mission-row .progress { color: #6c5ce7; font-weight: 600; }
+  .mission-row .progress { color: var(--pkm-red); font-weight: 600; }
   .mission-row .done { color: #00d68f; font-weight: 600; }
 
   /* REGALAR */
@@ -132,9 +140,15 @@
   .nav {
     display: flex;
     border-top: 1px solid #26262e;
-    position: sticky;
+    position: fixed;
+    left: 0;
+    right: 0;
     bottom: 0;
+    max-width: 420px;
+    margin: 0 auto;
     background: #0f0f14;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .nav div {
     flex: 1;
@@ -144,7 +158,7 @@
     color: #6b6b75;
     cursor: pointer;
   }
-  .nav div.active { color: #6c5ce7; }
+  .nav div.active { color: var(--pkm-red); }
 
   .toast {
     position: fixed;
@@ -170,7 +184,7 @@
       <div class="streak" id="streakText">🔥 Racha: 0 dias</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
-      <span onclick="toggleDebugPanel()" style="font-size:16px;cursor:pointer;color:#6b6b75;">🛠️</span>
+      <span id="debugIcon" onclick="toggleDebugPanel()" style="display:none;font-size:16px;cursor:pointer;color:#6b6b75;">🛠️</span>
       <div class="avatar" id="avatarLetter">?</div>
     </div>
   </div>
@@ -181,9 +195,9 @@
   <div id="viewHome">
     <div class="inventory">
       <div class="item-card">
-        <div class="icon">🔮</div>
+        <div class="icon">🪙</div>
         <div class="qty" id="qtyCristales">0</div>
-        <div class="label">Cristales</div>
+        <div class="label">PokéMonedas</div>
       </div>
       <div class="item-card" onclick="showTab('boost')" style="cursor:pointer;">
         <div class="icon">🥚</div>
@@ -202,14 +216,14 @@
     </div>
 
     <button class="ad-button" id="watchAdBtn" onclick="watchAd()">
-      ▶️ Ver anuncio: +3 cristales
+      ▶️ Ver anuncio: +3 PokéMonedas
     </button>
 
     <div class="section-title">Bono diario</div>
     <div class="missions">
       <div class="mission-row">
         <span>Racha de hoy</span>
-        <span class="progress" id="missionAdsProgress">0 cristales ganados</span>
+        <span class="progress" id="missionAdsProgress">0 PokéMonedas ganadas</span>
       </div>
       <div class="mission-row">
         <span>Regalar 1 objeto</span>
@@ -221,7 +235,7 @@
     <div class="gift-box" style="flex-direction:column;align-items:stretch;">
       <input id="giftUsername" type="text" placeholder="username de tu amigo (sin @)"
         style="background:#0f0f14;border:1px solid #3a3a45;border-radius:10px;color:white;padding:10px 12px;font-size:13px;">
-      <button onclick="sendGift()" style="margin-left:0;width:100%;height:38px;background:#6c5ce7;border:none;">Regalar 1 cristal</button>
+      <button onclick="sendGift()" style="margin-left:0;width:100%;height:38px;background:var(--pkm-red);border:none;">Regalar 1 cristal</button>
     </div>
   </div>
 
@@ -233,6 +247,7 @@
   <div class="nav">
     <div class="active" id="navHome" onclick="showTab('home')">🏠</div>
     <div id="navTrophy" onclick="showTab('leaderboard')">🏆</div>
+    <div id="navRules" onclick="showTab('rules')">📜</div>
     <div id="navProfile" onclick="showTab('profile')">👤</div>
   </div>
 
@@ -254,9 +269,8 @@
   // Anuncio automatico In-App Interstitial (Monetag)
   // No da recompensa, es distinto al rewarded de watchAd().
   // Se dispara solo segun estos parametros:
-  //   - hasta 2 anuncios cada 0.1 horas (6 min)
-  //   - 30s de intervalo minimo entre ellos
-  //   - 5s de espera antes del primero
+  //   - 1 anuncio cada ~0.166 horas (10 min)
+  //   - 30s de espera antes del primero (le da tiempo al usuario de usar la app)
   //   - everyPage:false -> la sesion de frecuencia persiste al navegar entre tabs
   // Se llama una sola vez al arrancar la app.
   // ============================================
@@ -264,10 +278,10 @@
     show_11612807({
       type: 'inApp',
       inAppSettings: {
-        frequency: 2,
-        capping: 0.1,
+        frequency: 1,
+        capping: 0.166,
         interval: 30,
-        timeout: 5,
+        timeout: 30,
         everyPage: false
       }
     });
@@ -298,6 +312,13 @@
 
   let currentUser = { telegram_id: null, username: null, first_name: "Jugador" };
 
+  // ============================================
+  // Panel de diagnostico: SOLO visible para ti.
+  // Reemplaza este numero por tu ID numerico de Telegram
+  // (te lo da @userinfobot al escribirle /start).
+  // ============================================
+  const OWNER_TELEGRAM_ID = 000000000; // <-- CAMBIA ESTO por tu ID real
+
   async function initUser() {
     let referredBy = null;
 
@@ -321,6 +342,10 @@
     }
 
     document.getElementById("userName").textContent = "Hola, " + currentUser.first_name;
+
+    if (currentUser.telegram_id === OWNER_TELEGRAM_ID) {
+      document.getElementById("debugIcon").style.display = "inline";
+    }
     document.getElementById("avatarLetter").textContent = currentUser.first_name.charAt(0).toUpperCase();
 
     debugLog("Iniciando... telegram_id=" + currentUser.telegram_id);
@@ -360,10 +385,39 @@
       state.referralCount = data.referral_count || 0;
 
       renderState();
+
+      if (data.daily_reward) {
+        showDailyRewardModal(data.daily_reward);
+      }
     } catch (err) {
       debugLog("ERROR de conexion en init: " + err.message);
       showToast("No se pudo conectar al servidor");
     }
+  }
+
+  // ============================================
+  // Modal de premio por entrar hoy
+  // ============================================
+  function showDailyRewardModal(reward) {
+    const rows = [`🪙 <b>+${reward.cristales}</b> PokéMonedas`];
+    if (reward.huevos > 0) rows.push(`🥚 <b>+${reward.huevos}</b> huevo`);
+    if (reward.capturas > 0) rows.push(`🎯 <b>+${reward.capturas}</b> captura`);
+
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999;padding:24px;";
+    overlay.innerHTML = `
+      <div style="background:#1a1a22;border:1px solid var(--pkm-gold);border-radius:18px;padding:24px 20px;text-align:center;max-width:320px;width:100%;">
+        <div style="font-size:36px;">🎁</div>
+        <div style="font-size:16px;font-weight:700;margin:10px 0 4px;">¡Premio por entrar hoy!</div>
+        <div style="font-size:12px;color:#9a9aa5;margin-bottom:14px;">🔥 Racha: ${reward.streak} dia(s)</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:14px;margin-bottom:18px;">
+          ${rows.map(r => `<div>${r}</div>`).join("")}
+        </div>
+        <button id="dailyRewardCloseBtn" style="width:100%;height:42px;background:linear-gradient(135deg,var(--pkm-red),#FF7A45);border:none;border-radius:10px;color:white;font-weight:700;font-size:14px;">¡Genial!</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById("dailyRewardCloseBtn").onclick = () => overlay.remove();
   }
 
   function renderState() {
@@ -484,7 +538,7 @@
       showToast("No se pudo completar el anuncio, intenta de nuevo");
     }).finally(() => {
       btn.disabled = false;
-      btn.textContent = "▶️ Ver anuncio: +3 cristales";
+      btn.textContent = "▶️ Ver anuncio: +3 PokéMonedas";
     });
   }
 
@@ -507,7 +561,7 @@
       }
 
       const data = await res.json();
-      debugLog("Recompensa recibida: +" + data.reward_quantity + " cristales");
+      debugLog("Recompensa recibida: +" + data.reward_quantity + " PokéMonedas");
 
       state.cristales = data.inventory.cristales;
       state.huevos = data.inventory.huevos;
@@ -515,10 +569,10 @@
       state.adsWatchedToday = data.mission_progress;
 
       renderState();
-      showToast("+" + data.reward_quantity + " cristales");
+      showToast("+" + data.reward_quantity + " PokéMonedas");
 
       if (data.mission_completed) {
-        showToast("¡Bono diario desbloqueado! +15 cristales extra");
+        showToast("¡Bono diario desbloqueado! +15 PokéMonedas extra");
       }
     } catch (err) {
       debugLog("ERROR de conexion: " + err.message);
@@ -538,7 +592,7 @@
       return;
     }
     if (state.cristales < 1) {
-      showToast("No tienes cristales para regalar");
+      showToast("No tienes PokéMonedas para regalar");
       return;
     }
 
@@ -615,6 +669,7 @@
 
     document.getElementById("navHome").classList.toggle("active", tab === "home");
     document.getElementById("navTrophy").classList.toggle("active", tab === "leaderboard");
+    document.getElementById("navRules").classList.toggle("active", tab === "rules");
     document.getElementById("navProfile").classList.toggle("active", tab === "profile" || tab === "boost" || tab === "capturas");
 
     if (tab === "home") {
@@ -643,7 +698,7 @@
         } else {
           html += data.ranking.map((u) => `
             <div style="display:flex;align-items:center;gap:12px;background:${u.in_top_10_percent ? "#2d2410" : "#1a1a22"};border:${u.in_top_10_percent ? "1px solid #fdcb6e" : "none"};border-radius:12px;padding:12px 14px;margin-bottom:8px;">
-              <span style="font-weight:700;color:${u.in_top_10_percent ? "#fdcb6e" : "#6c5ce7"};width:26px;">#${u.rank}</span>
+              <span style="font-weight:700;color:${u.in_top_10_percent ? "#fdcb6e" : "var(--pkm-red)"};width:26px;">#${u.rank}</span>
               <span style="flex:1;font-size:14px;">${u.name}${u.telegram_id === currentUser.telegram_id ? " (tu)" : ""}</span>
               <span style="font-size:13px;color:#9a9aa5;">${u.points} pts</span>
               ${u.in_top_10_percent ? '<span style="font-size:14px;">🏆</span>' : ""}
@@ -661,12 +716,71 @@
       content.innerHTML = viewHeader("⚡ Boost x2") + `
         <div style="background:#1a1a22;border-radius:14px;padding:16px;">
           <p style="font-size:13px;color:#9a9aa5;margin-bottom:14px;">
-            Gasta 🥚 3 huevos y duplica los cristales que ganas viendo anuncios durante 1 hora.
+            Gasta 🥚 3 huevos y duplica las PokéMonedas que ganas viendo anuncios durante 1 hora.
           </p>
           ${boostActive
             ? `<div style="background:#2d2410;border:1px solid #fdcb6e;border-radius:10px;padding:12px;text-align:center;font-size:13px;color:#fdcb6e;">⚡ Ya tienes un boost activo</div>`
             : `<button onclick="activateBoost()" style="width:100%;height:44px;background:linear-gradient(135deg,#fdcb6e,#e17055);border:none;border-radius:10px;color:#2d2410;font-weight:700;font-size:14px;">Activar boost (3 🥚)</button>`
           }
+        </div>
+      `;
+    }
+
+    if (tab === "rules") {
+      content.innerHTML = viewHeader("📜 Reglas del juego") + "<p style='color:#9a9aa5;font-size:13px;'>Cargando...</p>";
+
+      let winnersLine = "El top <b style='color:var(--pkm-gold);'>10%</b> del ranking semanal.";
+      try {
+        const res = await fetch(BACKEND_URL + "/leaderboard/weekly");
+        const data = await res.json();
+        if (data && typeof data.top_10_percent_count === "number") {
+          winnersLine = `Actualmente esta semana ganarian <b style="color:var(--pkm-gold);">${data.top_10_percent_count}</b> jugador(es) — el top <b style="color:var(--pkm-gold);">10%</b> de los ${data.total_active_users} que tienen puntos esta semana.`;
+        }
+      } catch (err) {
+        // si falla, se queda con el texto generico de arriba
+      }
+
+      content.innerHTML = viewHeader("📜 Reglas del juego") + `
+        <div style="background:#1a1a22;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:16px;">
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🏆 ¿Quien gana el premio?</p>
+            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">${winnersLine} El ranking se reinicia cada lunes.</p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🪙 Como ganar PokéMonedas</p>
+            <ul style="font-size:13px;color:#d0d0d8;line-height:1.6;padding-left:18px;">
+              <li>Ver anuncios: +2 a +4 PokéMonedas cada uno (hasta 25 al dia)</li>
+              <li>Completar los 25 anuncios del dia: +15 PokéMonedas de bono, y ademas te regala 1 captura 🎯</li>
+              <li>Entrar cada dia a la app: premio de bienvenida automatico (PokéMonedas, y huevos o capturas segun tu racha)</li>
+              <li>Invitar amigos: +10 PokéMonedas por cada amigo que abra la app por primera vez usando tu link</li>
+            </ul>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🥚 Huevos y Boost x2</p>
+            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
+              Ganas huevos regalando objetos y con tu racha de entradas diarias. Gasta 3 huevos para activar
+              un Boost x2 que duplica las PokéMonedas que ganas viendo anuncios durante 1 hora.
+            </p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🎯 Capturas</p>
+            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
+              Son trofeos de logro. Cada captura suma 10 puntos extra al ranking semanal, asi que son tu forma
+              mas rapida de subir posiciones.
+            </p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🔥 Racha diaria</p>
+            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
+              Entra todos los dias sin faltar uno para mantener tu racha. Si te saltas un dia completo, vuelve a empezar en 1.
+            </p>
+          </div>
+
         </div>
       `;
     }
@@ -695,7 +809,7 @@
             <span style="color:#9a9aa5;">Racha actual</span><span>${state.streak} dias</span>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-top:1px solid #26262e;">
-            <span style="color:#9a9aa5;">Cristales</span><span>${state.cristales}</span>
+            <span style="color:#9a9aa5;">PokéMonedas</span><span>${state.cristales}</span>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-top:1px solid #26262e;">
             <span style="color:#9a9aa5;">Huevos</span><span>${state.huevos}</span>
@@ -711,8 +825,8 @@
           </div>
         </div>
 
-        <button onclick="shareInviteLink()" style="width:100%;height:46px;margin-top:14px;background:#1a1a22;border:1px solid #6c5ce7;border-radius:12px;color:#a29bfe;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;">
-          📤 Invitar amigos: +10 cristales por cada uno
+        <button onclick="shareInviteLink()" style="width:100%;height:46px;margin-top:14px;background:#1a1a22;border:1px solid var(--pkm-red);border-radius:12px;color:#FF9270;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;">
+          📤 Invitar amigos: +10 PokéMonedas por cada uno
         </button>
       `;
     }
