@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<!-- BUILD-VERSION: v11-reward-range-fix-2026-08-22 -->
+<!-- BUILD-VERSION: v12-FIX-debugLog-crash-2026-08-22 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Regalos GO</title>
@@ -263,6 +263,25 @@
 
 <script>
   // ============================================
+  // Panel de diagnostico visible (sin necesidad de F12)
+  // Va PRIMERO en el archivo a proposito: varias cosas mas abajo
+  // llaman a debugLog() apenas carga la pagina, y si esto se declara
+  // despues, revienta todo el script con un error de inicializacion.
+  // ============================================
+  let debugLines = [];
+  function debugLog(msg) {
+    const time = new Date().toLocaleTimeString();
+    debugLines.push(`[${time}] ${msg}`);
+    if (debugLines.length > 30) debugLines.shift();
+    const panel = document.getElementById("debugPanel");
+    if (panel && panel.style.display !== "none") {
+      panel.textContent = debugLines.join("\n");
+      panel.scrollTop = panel.scrollHeight;
+    }
+    console.log(msg);
+  }
+
+  // ============================================
   // Inicializa el SDK de Telegram
   // ============================================
   const tg = window.Telegram ? window.Telegram.WebApp : null;
@@ -477,21 +496,6 @@
     setTimeout(() => { t.style.display = "none"; }, 2000);
   }
 
-  // ============================================
-  // Panel de diagnostico visible (sin necesidad de F12)
-  // ============================================
-  let debugLines = [];
-  function debugLog(msg) {
-    const time = new Date().toLocaleTimeString();
-    debugLines.push(`[${time}] ${msg}`);
-    if (debugLines.length > 30) debugLines.shift();
-    const panel = document.getElementById("debugPanel");
-    if (panel && panel.style.display !== "none") {
-      panel.textContent = debugLines.join("\n");
-      panel.scrollTop = panel.scrollHeight;
-    }
-    console.log(msg);
-  }
   function toggleDebugPanel() {
     const panel = document.getElementById("debugPanel");
     const visible = panel.style.display === "block";
