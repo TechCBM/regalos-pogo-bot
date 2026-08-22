@@ -251,6 +251,31 @@
   }
 
   // ============================================
+  // Anuncio automatico In-App Interstitial (Monetag)
+  // No da recompensa, es distinto al rewarded de watchAd().
+  // Se dispara solo segun estos parametros:
+  //   - hasta 2 anuncios cada 0.1 horas (6 min)
+  //   - 30s de intervalo minimo entre ellos
+  //   - 5s de espera antes del primero
+  //   - everyPage:false -> la sesion de frecuencia persiste al navegar entre tabs
+  // Se llama una sola vez al arrancar la app.
+  // ============================================
+  if (typeof show_11612807 === "function") {
+    show_11612807({
+      type: 'inApp',
+      inAppSettings: {
+        frequency: 2,
+        capping: 0.1,
+        interval: 30,
+        timeout: 5,
+        everyPage: false
+      }
+    });
+  } else {
+    debugLog ? debugLog("Monetag SDK no disponible para in-app interstitial") : console.warn("Monetag SDK no disponible para in-app interstitial");
+  }
+
+  // ============================================
   // URL de tu backend en Render (CAMBIA ESTO por tu URL real)
   // ============================================
   const BACKEND_URL = "https://regalos-pogo-backend.onrender.com";
@@ -426,6 +451,13 @@
     {
       name: "monetag",
       show: () => (typeof show_11612807 === "function" ? show_11612807() : Promise.reject(new Error("SDK no cargado")))
+    },
+    {
+      // Mismo SDK/zona de Monetag, pero formato "Rewarded Popup" (se abre en
+      // ventana/pestana aparte en vez de interstitial). Cuenta como otro
+      // "network" dentro de la rotacion para variar el formato mostrado.
+      name: "monetag_pop",
+      show: () => (typeof show_11612807 === "function" ? show_11612807('pop') : Promise.reject(new Error("SDK no cargado")))
     },
     // { name: "adsgram", show: () => window.Adsgram.init({ blockId: "TU_BLOCK_ID" }).show() },
     // { name: "richads", show: () => window.RichAds.showRewarded("TU_ZONE_ID") },
