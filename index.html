@@ -330,8 +330,22 @@
     adsWatchedToday: 0,
     giftsSentToday: 0,
     boostActiveUntil: null,
-    referralCount: 0
+    referralCount: 0,
+    currentLevel: 1,
+    pointsRedeemedToday: 0
   };
+
+  // Debe coincidir EXACTO con LEVEL_THRESHOLDS del backend (main.py)
+  const LEVEL_THRESHOLDS = [
+    { level: 2, capturesRequired: 3, label: "+20 PokéMonedas" },
+    { level: 3, capturesRequired: 6, label: "+1 huevo" },
+    { level: 4, capturesRequired: 10, label: "Boost x2 gratis" },
+    { level: 5, capturesRequired: 15, label: "+50 PokéMonedas" },
+    { level: 6, capturesRequired: 21, label: "+2 huevos" },
+    { level: 7, capturesRequired: 28, label: "Insignia especial" },
+  ];
+  const COINS_PER_POINT = 10;
+  const MAX_REDEEM_POINTS_PER_DAY = 10;
 
   const BOT_USERNAME = "regalos_pogo_bot"; // <-- CAMBIA ESTO por el username real de tu bot (sin @)
   const MINI_APP_SHORT_NAME = "Regalos"; // short name real, asignado en BotFather con /newapp
@@ -409,6 +423,8 @@
       state.giftsSentToday = data.missions.gifts_sent_today;
       state.boostActiveUntil = data.boost_active_until || null;
       state.referralCount = data.referral_count || 0;
+      state.currentLevel = data.current_level || 1;
+      state.pointsRedeemedToday = data.points_redeemed_today || 0;
 
       renderState();
       loadFriends();
@@ -485,6 +501,36 @@
       showToast("⚡ Boost x2 activado por 1 hora");
     } catch (err) {
       console.error("Error activando boost:", err);
+      showToast("No se pudo conectar al servidor");
+    }
+  }
+
+  async function redeemPoints(coinsToRedeem) {
+    if (!coinsToRedeem || coinsToRedeem < COINS_PER_POINT) {
+      showToast(`Necesitas al menos ${COINS_PER_POINT} PokéMonedas para canjear`, 3000);
+      return;
+    }
+    try {
+      const res = await fetch(BACKEND_URL + "/points/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telegram_id: currentUser.telegram_id, coins_to_redeem: coinsToRedeem })
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        showToast(errData.detail || "No se pudo canjear", 4000);
+        return;
+      }
+      const data = await res.json();
+      state.cristales = data.inventory.cristales;
+      state.huevos = data.inventory.huevos;
+      state.capturas = data.inventory.capturas;
+      state.pointsRedeemedToday = data.points_redeemed_today_total;
+      renderState();
+      showToast(`💱 +${data.points_redeemed} punto(s) de ranking`, 3000);
+      showTab("profile"); // refresca la vista para actualizar el tope restante
+    } catch (err) {
+      console.error("Error canjeando puntos:", err);
       showToast("No se pudo conectar al servidor");
     }
   }
@@ -641,6 +687,11 @@
 
       if (data.mission_completed) {
         showToast("¡Bono diario desbloqueado! +15 PokéMonedas extra");
+      }
+
+      if (data.level_up) {
+        state.currentLevel = data.level_up.new_level;
+        setTimeout(() => showToast(`⭐ ¡Subiste a Nivel ${data.level_up.new_level}!`, 4000), 3200);
       }
 
       startAdCooldown(data.cooldown_seconds || 600);
@@ -908,10 +959,37 @@
     }
 
     if (tab === "profile") {
+      const nextLevelEntry = LEVEL_THRESHOLDS.find(l => l.level === state.currentLevel + 1);
+      const prevRequired = LEVEL_THRESHOLDS.find(l => l.level === state.currentLevel)?.capturesRequired || 0;
+      let levelProgressHtml = "";
+      if (nextLevelEntry) {
+        const pct = Math.min(100, Math.round(((state.capturas - prevRequired) / (nextLevelEntry.capturesRequired - prevRequired)) * 100));
+        levelProgressHtml = `
+          <div style="margin-top:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#9a9aa5;margin-bottom:4px;">
+              <span>${state.capturas}/${nextLevelEntry.capturesRequired} capturas</span>
+              <span>Nivel ${state.currentLevel + 1}: ${nextLevelEntry.label}</span>
+            </div>
+            <div style="background:#0f0f14;border-radius:6px;height:8px;overflow:hidden;">
+              <div style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);height:100%;width:${pct}%;"></div>
+            </div>
+          </div>`;
+      } else {
+        levelProgressHtml = `<p style="font-size:11px;color:#9a9aa5;margin-top:8px;">¡Nivel maximo alcanzado! 🏆</p>`;
+      }
+
+      const remainingRedeem = MAX_REDEEM_POINTS_PER_DAY - state.pointsRedeemedToday;
+
       content.innerHTML = viewHeader("👤 Tu perfil") + `
         <div style="background:#1a1a22;border-radius:14px;padding:16px;">
           <p style="font-size:14px;font-weight:600;margin-bottom:4px;">${currentUser.first_name}</p>
           <p style="font-size:12px;color:#9a9aa5;margin-bottom:14px;">@${currentUser.username || "sin_username"}</p>
+
+          <div style="background:#0f0f14;border-radius:10px;padding:12px;margin-bottom:14px;">
+            <p style="font-size:13px;font-weight:700;color:#a29bfe;">⭐ Nivel ${state.currentLevel}</p>
+            ${levelProgressHtml}
+          </div>
+
           <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-top:1px solid #26262e;">
             <span style="color:#9a9aa5;">Racha actual</span><span>${state.streak} dias</span>
           </div>
@@ -930,6 +1008,20 @@
           <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-top:1px solid #26262e;">
             <span style="color:#9a9aa5;">Amigos invitados</span><span>${state.referralCount || 0}</span>
           </div>
+        </div>
+
+        <div style="background:#1a1a22;border-radius:14px;padding:16px;margin-top:14px;">
+          <p style="font-size:13px;font-weight:700;margin-bottom:6px;">💱 Canjear monedas por puntos</p>
+          <p style="font-size:11px;color:#9a9aa5;margin-bottom:10px;">
+            ${COINS_PER_POINT} PokéMonedas = 1 punto de ranking semanal.
+            Tope diario: ${MAX_REDEEM_POINTS_PER_DAY} puntos (${remainingRedeem} restantes hoy).
+          </p>
+          ${remainingRedeem > 0
+            ? `<button onclick="redeemPoints(${Math.min(COINS_PER_POINT, state.cristales)})" style="width:100%;height:42px;background:linear-gradient(135deg,#6c5ce7,#a29bfe);border:none;border-radius:10px;color:white;font-weight:700;font-size:13px;">
+                 Canjear ${COINS_PER_POINT} monedas → 1 punto
+               </button>`
+            : `<div style="text-align:center;font-size:12px;color:#fdcb6e;">Ya canjeaste tu maximo de hoy, vuelve mañana</div>`
+          }
         </div>
 
         <button onclick="shareInviteLink()" style="width:100%;height:46px;margin-top:14px;background:#1a1a22;border:1px solid var(--pkm-red);border-radius:12px;color:#FF9270;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;">
