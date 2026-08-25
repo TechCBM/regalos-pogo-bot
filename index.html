@@ -12,6 +12,9 @@
 <!-- SDK de Monetag (anuncios con recompensa) -->
 <script src='//libtl.com/sdk.js' data-zone='11612807' data-sdk='show_11612807'></script>
 
+<!-- SDK de AdsGram (anuncios con recompensa) -->
+<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -219,15 +222,24 @@
       ⚡ Activar Boost x2 (3 🥚)
     </button>
 
-    <button class="ad-button" id="watchAdBtn" onclick="watchAd()">
-      ▶️ Ver anuncio: +2 a +4 PokéMonedas
+    <button class="ad-button" id="watchAdBtn_monetag" onclick="watchAd('monetag')">
+      🔮 Ver anuncio: +2 a +4 PokéMonedas
+    </button>
+    <button class="ad-button" id="watchAdBtn_monetag_pop" onclick="watchAd('monetag_pop')" style="margin-top:10px;">
+      ⚡ Ver anuncio rapido: +2 a +4 PokéMonedas
+    </button>
+    <button class="ad-button" id="watchAdBtn_adsgram_1" onclick="watchAd('adsgram_1')" style="margin-top:10px;">
+      🌟 Ver anuncio bonus: +2 a +4 PokéMonedas
+    </button>
+    <button class="ad-button" id="watchAdBtn_adsgram_2" onclick="watchAd('adsgram_2')" style="margin-top:10px;">
+      🎁 Ver anuncio especial: +2 a +4 PokéMonedas
     </button>
 
-    <div class="section-title">Bono diario</div>
+    <div class="section-title">Progreso</div>
     <div class="missions">
       <div class="mission-row">
-        <span>Racha de hoy</span>
-        <span class="progress" id="missionAdsProgress">0 PokéMonedas ganadas</span>
+        <span>Anuncios vistos (total)</span>
+        <span class="progress" id="missionAdsProgress">0</span>
       </div>
       <div class="mission-row">
         <span>Regalar 1 objeto</span>
@@ -303,7 +315,7 @@
     huevos: 0,
     capturas: 0,
     streak: 0,
-    adsWatchedToday: 0,
+    totalAdsWatched: 0,
     giftsSentToday: 0,
     boostActiveUntil: null,
     referralCount: 0,
@@ -395,7 +407,7 @@
       state.huevos = data.inventory.huevos;
       state.capturas = data.inventory.capturas;
       state.streak = data.streak;
-      state.adsWatchedToday = data.missions.ads_watched_today;
+      state.totalAdsWatched = data.total_ads_watched || 0;
       state.giftsSentToday = data.missions.gifts_sent_today;
       state.boostActiveUntil = data.boost_active_until || null;
       state.referralCount = data.referral_count || 0;
@@ -405,8 +417,10 @@
       renderState();
       loadFriends();
 
-      if (data.ad_cooldown_seconds_remaining > 0) {
-        startAdCooldown(data.ad_cooldown_seconds_remaining);
+      if (data.ad_cooldowns) {
+        for (const [networkName, secondsRemaining] of Object.entries(data.ad_cooldowns)) {
+          if (secondsRemaining > 0) startAdCooldown(networkName, secondsRemaining);
+        }
       }
 
       if (data.daily_reward) {
@@ -448,7 +462,7 @@
     document.getElementById("qtyHuevos").textContent = state.huevos;
     document.getElementById("qtyCapturas").textContent = state.capturas;
     document.getElementById("streakText").textContent = "🔥 Racha: " + state.streak + " dias";
-    document.getElementById("missionAdsProgress").textContent = state.adsWatchedToday + " veces hoy";
+    document.getElementById("missionAdsProgress").textContent = state.totalAdsWatched;
     document.getElementById("missionGiftProgress").textContent = state.giftsSentToday + "/1";
 
     const boostActive = state.boostActiveUntil && new Date(state.boostActiveUntil) > new Date();
@@ -526,48 +540,59 @@
   }
 
   // ============================================
-  // Ver anuncio - ROTACION entre varias redes
+  // Ver anuncio - BOTONES INDEPENDIENTES por red
   // ============================================
-  // Cada red tiene un limite practico de anuncios/dia por usuario antes de
-  // que la marquen como "trafico incentivado". Repartiendo entre varias
-  // redes, el usuario puede ver muchos mas anuncios en total sin que
-  // ninguna red individual vea un volumen sospechoso.
+  // Cada red tiene su propio limite practico de anuncios/dia por usuario
+  // antes de que la marquen como "trafico incentivado" (10 min entre
+  // vistas). Con un boton por red, el usuario puede ver un anuncio de
+  // CADA red sin esperar el cooldown de las demas -- mas volumen total
+  // sin pasarse del limite seguro de ninguna red individual.
   //
-  // Ya tienes cuentas de Adsgram, RichAds y OnClicka de tu Diamond Bot.
-  // Para activarlas aqui:
-  //   1. Crea una zona "Rewarded" para ESTE juego en cada plataforma
-  //   2. Pega su script SDK en el <head> (igual que hiciste con Monetag)
-  //   3. Descomenta la linea correspondiente en AD_NETWORKS abajo, y
-  //      reemplaza la funcion show() por la de esa red
-  const AD_NETWORKS = [
-    {
-      name: "monetag",
+  // Para agregar una red nueva (ej. Adsgram):
+  //   1. Crea una zona "Rewarded" para ESTE juego en esa plataforma
+  //   2. Pega su script SDK en el <head> (igual que Monetag)
+  //   3. Agrega una entrada aqui, y un boton igual a los de abajo en el HTML
+  //      (con id="watchAdBtn_NOMBRE" y onclick="watchAd('NOMBRE')")
+  const AD_NETWORKS = {
+    monetag: {
+      label: "🔮 Ver anuncio",
       show: () => (typeof show_11612807 === "function" ? show_11612807() : Promise.reject(new Error("SDK no cargado")))
     },
-    {
-      // Mismo SDK/zona de Monetag, pero formato "Rewarded Popup" (se abre en
-      // ventana/pestana aparte en vez de interstitial). Cuenta como otro
-      // "network" dentro de la rotacion para variar el formato mostrado.
-      name: "monetag_pop",
+    monetag_pop: {
+      label: "⚡ Ver anuncio rapido",
       show: () => (typeof show_11612807 === "function" ? show_11612807('pop') : Promise.reject(new Error("SDK no cargado")))
     },
-    // { name: "adsgram", show: () => window.Adsgram.init({ blockId: "TU_BLOCK_ID" }).show() },
-    // { name: "richads", show: () => window.RichAds.showRewarded("TU_ZONE_ID") },
-    // { name: "onclicka", show: () => window.OnClicka.show("TU_ZONE_ID") },
-  ];
+    adsgram_1: {
+      label: "🌟 Ver anuncio bonus",
+      show: () => (typeof window.Adsgram === "function" || typeof window.Adsgram === "object"
+        ? window.Adsgram.init({ blockId: "44591" }).show()
+        : Promise.reject(new Error("SDK de AdsGram no cargado")))
+    },
+    adsgram_2: {
+      label: "🎁 Ver anuncio especial",
+      show: () => (typeof window.Adsgram === "function" || typeof window.Adsgram === "object"
+        ? window.Adsgram.init({ blockId: "44592" }).show()
+        : Promise.reject(new Error("SDK de AdsGram no cargado")))
+    },
+  };
 
-  let adNetworkIndex = 0;
+  // Un intervalo de cooldown independiente POR CADA red/boton
+  let adCooldownIntervals = {};
 
-  let adCooldownInterval = null;
+  function defaultButtonText(networkName) {
+    return AD_NETWORKS[networkName].label + ": +2 a +4 PokéMonedas";
+  }
 
-  function startAdCooldown(seconds) {
-    const btn = document.getElementById("watchAdBtn");
-    if (adCooldownInterval) clearInterval(adCooldownInterval);
+  function startAdCooldown(networkName, seconds) {
+    const btn = document.getElementById("watchAdBtn_" + networkName);
+    if (!btn) return;
+
+    if (adCooldownIntervals[networkName]) clearInterval(adCooldownIntervals[networkName]);
 
     let remaining = Math.ceil(seconds);
     if (remaining <= 0) {
       btn.disabled = false;
-      btn.textContent = "▶️ Ver anuncio: +2 a +4 PokéMonedas";
+      btn.textContent = defaultButtonText(networkName);
       return;
     }
 
@@ -579,49 +604,48 @@
     }
 
     renderCooldown();
-    adCooldownInterval = setInterval(() => {
+    adCooldownIntervals[networkName] = setInterval(() => {
       remaining--;
       if (remaining <= 0) {
-        clearInterval(adCooldownInterval);
-        adCooldownInterval = null;
+        clearInterval(adCooldownIntervals[networkName]);
+        adCooldownIntervals[networkName] = null;
         btn.disabled = false;
-        btn.textContent = "▶️ Ver anuncio: +2 a +4 PokéMonedas";
+        btn.textContent = defaultButtonText(networkName);
       } else {
         renderCooldown();
       }
     }, 1000);
   }
 
-  function watchAd() {
-    const btn = document.getElementById("watchAdBtn");
-    if (btn.disabled) return; // en cooldown, no hacer nada
+  function watchAd(networkName) {
+    const network = AD_NETWORKS[networkName];
+    const btn = document.getElementById("watchAdBtn_" + networkName);
+    if (!network || !btn || btn.disabled) return; // en cooldown o red invalida, no hacer nada
 
     btn.disabled = true;
     btn.textContent = "Cargando anuncio...";
 
-    const network = AD_NETWORKS[adNetworkIndex % AD_NETWORKS.length];
-    adNetworkIndex++;
-
-    debugLog("Boton tocado, usando red: " + network.name);
+    debugLog("Boton tocado, usando red: " + networkName);
 
     network.show().then(() => {
-      debugLog("Anuncio completado (" + network.name + "), avisando al servidor...");
-      onAdCompleted(network.name);
+      debugLog("Anuncio completado (" + networkName + "), avisando al servidor...");
+      onAdCompleted(networkName);
     }).catch((err) => {
-      debugLog("ERROR del anuncio (" + network.name + "): " + (err && err.message ? err.message : JSON.stringify(err)));
+      debugLog("ERROR del anuncio (" + networkName + "): " + (err && err.message ? err.message : JSON.stringify(err)));
       showToast("No se pudo completar el anuncio, intenta de nuevo");
       btn.disabled = false;
-      btn.textContent = "▶️ Ver anuncio: +2 a +4 PokéMonedas";
+      btn.textContent = defaultButtonText(networkName);
     });
   }
 
-  async function onAdCompleted(adNetwork) {
+  async function onAdCompleted(networkName) {
     debugLog("Llamando a: " + BACKEND_URL + "/ad-completed");
+    const btn = document.getElementById("watchAdBtn_" + networkName);
     try {
       const res = await fetch(BACKEND_URL + "/ad-completed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegram_id: currentUser.telegram_id, ad_network: adNetwork || "monetag" })
+        body: JSON.stringify({ telegram_id: currentUser.telegram_id, ad_network: networkName })
       });
 
       debugLog("Respuesta del servidor: HTTP " + res.status);
@@ -632,7 +656,7 @@
           ? errData.detail.seconds_remaining
           : 600;
         showToast("Todavia en cooldown, espera un poco");
-        startAdCooldown(secondsRemaining);
+        startAdCooldown(networkName, secondsRemaining);
         return;
       }
 
@@ -640,9 +664,10 @@
         const errText = await res.text();
         debugLog("ERROR del servidor: " + errText);
         showToast("Error del servidor (" + res.status + ")");
-        const btn = document.getElementById("watchAdBtn");
-        btn.disabled = false;
-        btn.textContent = "▶️ Ver anuncio: +2 a +4 PokéMonedas";
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = defaultButtonText(networkName);
+        }
         return;
       }
 
@@ -652,17 +677,17 @@
       state.cristales = data.inventory.cristales;
       state.huevos = data.inventory.huevos;
       state.capturas = data.inventory.capturas;
-      state.adsWatchedToday = data.mission_progress;
+      state.totalAdsWatched = data.total_ads_watched || state.totalAdsWatched;
 
       renderState();
       showToast("+" + data.reward_quantity + " PokéMonedas");
 
       if (data.earned_egg) {
-        setTimeout(() => showToast("🥚 +1 huevo (cada 10 anuncios)", 3000), 2200);
+        setTimeout(() => showToast("🥚 +1 huevo (cada 15 anuncios)", 3000), 2200);
       }
 
-      if (data.mission_completed) {
-        showToast("¡Bono diario desbloqueado! +15 PokéMonedas extra");
+      if (data.earned_capture) {
+        setTimeout(() => showToast("🎯 +1 captura y +20 PokéMonedas (cada 50 anuncios)", 3500), 2600);
       }
 
       if (data.level_up) {
@@ -670,13 +695,14 @@
         setTimeout(() => showToast(`⭐ ¡Subiste a Nivel ${data.level_up.new_level}!`, 4000), 3200);
       }
 
-      startAdCooldown(data.cooldown_seconds || 600);
+      startAdCooldown(networkName, data.cooldown_seconds || 600);
     } catch (err) {
       debugLog("ERROR de conexion: " + err.message);
       showToast("No se pudo guardar tu recompensa, intenta de nuevo");
-      const btn = document.getElementById("watchAdBtn");
-      btn.disabled = false;
-      btn.textContent = "▶️ Ver anuncio: +2 a +4 PokéMonedas";
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = defaultButtonText(networkName);
+      }
     }
   }
 
@@ -868,45 +894,52 @@
           <div>
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🎮 De que trata Regalos GO</p>
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
-              Cada dia que entras y juegas ganas <b>PokéMonedas</b> 🪙, <b>huevos</b> 🥚 y <b>capturas</b> 🎯.
-              Todo lo que hagas en la app tambien te suma puntos al ranking semanal: cuanto mas juegas,
-              mas arriba subes, y los mejores de la semana ganan el premio.
+              Cada anuncio que ves te da <b>PokéMonedas</b> 🪙, y cada cierta cantidad tambien
+              <b>huevos</b> 🥚 y <b>capturas</b> 🎯. No hay limite diario de anuncios: mientras mas veas,
+              mas ganas. Todo lo que hagas en la app tambien suma puntos al ranking semanal — los
+              mejores de la semana ganan un premio real.
             </p>
           </div>
 
           <div>
-            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🏆 ¿Quien gana el premio?</p>
-            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">${winnersLine} El ranking se reinicia cada lunes.</p>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🏆 El premio semanal</p>
+            <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
+              Cada semana se arma un ranking por puntos. ${winnersLine} El ranking se reinicia
+              cada lunes para todos por igual, asi que empezar tarde no es desventaja: la semana
+              siempre arranca en 0 para todos.
+            </p>
           </div>
 
           <div>
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🏅 Como se ganan los puntos del ranking</p>
             <ul style="font-size:13px;color:#d0d0d8;line-height:1.6;padding-left:18px;">
               <li>Ver un anuncio: <b>+1 punto</b></li>
-              <li>Completar los 25 anuncios del dia: <b>+10 puntos</b> extra</li>
+              <li>Cada 50 anuncios vistos (te dan una captura): <b>+10 puntos</b> extra</li>
               <li>Entrar a la app cada dia (premio de bienvenida): <b>+3 puntos</b></li>
               <li>Regalar 1 objeto a un amigo: <b>+2 puntos</b></li>
               <li>Invitar a un amigo nuevo: <b>+5 puntos</b></li>
+              <li>Canjear PokéMonedas por puntos (ver mas abajo)</li>
             </ul>
           </div>
 
           <div>
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🪙 Como ganar PokéMonedas</p>
             <ul style="font-size:13px;color:#d0d0d8;line-height:1.6;padding-left:18px;">
-              <li>Ver anuncios: +2 a +4 PokéMonedas cada uno (hasta 25 al dia, con un descanso de 10 minutos entre cada uno)</li>
-              <li>Completar los 25 anuncios del dia: +15 PokéMonedas de bono, y ademas te regala 1 captura 🎯</li>
+              <li>Ver anuncios: +2 a +4 PokéMonedas cada uno, sin limite diario</li>
+              <li>Cada 50 anuncios vistos: +20 PokéMonedas de bono extra, y ademas te regala 1 captura 🎯</li>
               <li>Entrar cada dia a la app: premio de bienvenida automatico de 5 a 15 PokéMonedas</li>
               <li>Invitar amigos: +10 PokéMonedas por cada amigo que abra la app por primera vez usando tu link</li>
             </ul>
             <p style="font-size:12px;color:#6b6b75;margin-top:8px;">
-              ⏳ Los anuncios tienen un descanso de 10 minutos entre uno y otro, para que cuenten como vistas reales.
+              ⏳ Hay 2 botones de anuncio, cada uno con su propio descanso de 10 minutos, independiente
+              del otro — cuando uno esta en cooldown, puedes usar el otro mientras tanto.
             </p>
           </div>
 
           <div>
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🥚 Huevos y Boost x2</p>
             <ul style="font-size:13px;color:#d0d0d8;line-height:1.6;padding-left:18px;">
-              <li>Ver anuncios: <b>+1 huevo cada 10 anuncios vistos</b> en total</li>
+              <li>Ver anuncios: <b>+1 huevo cada 15 anuncios vistos</b> en total, sin limite diario</li>
               <li>Subir de nivel: algunos niveles regalan huevos extra</li>
             </ul>
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;margin-top:8px;">
@@ -939,10 +972,10 @@
           <div>
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🎯 Capturas</p>
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
-              Son trofeos de logro. Ganas una al completar tus 25 anuncios del dia, y otra extra cada 7 dias
-              de racha con el premio de bienvenida. No dan puntos por si solas, pero completar el bono de
-              anuncios (que es lo que te las da) si suma <b>+10 puntos</b> al ranking. Ademas, acumularlas
-              te sube de nivel (ver seccion de Niveles).
+              Son trofeos de logro. Ganas una cada 50 anuncios vistos en total, sin limite diario, y otra
+              extra cada 7 dias de racha con el premio de bienvenida. Cada captura suma <b>+10 puntos</b>
+              al ranking semanal en el momento que la ganas, y ademas acumularlas te sube de nivel (ver
+              seccion de Niveles).
             </p>
           </div>
 
