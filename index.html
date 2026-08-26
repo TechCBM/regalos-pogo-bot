@@ -237,10 +237,6 @@
     <div class="section-title">Progreso</div>
     <div class="missions">
       <div class="mission-row">
-        <span>Anuncios vistos (total)</span>
-        <span class="progress" id="missionAdsProgress">0</span>
-      </div>
-      <div class="mission-row">
         <span>Regalar 1 objeto</span>
         <span class="progress" id="missionGiftProgress">0/1</span>
       </div>
@@ -332,7 +328,7 @@
     { level: 7, capturesRequired: 28, label: "Insignia especial" },
   ];
   const COINS_PER_POINT = 10;
-  const MAX_REDEEM_POINTS_PER_DAY = 10;
+  const MAX_REDEEM_POINTS_PER_DAY = 80; // = 800 PokeMonedas/dia
 
   const BOT_USERNAME = "regalos_pogo_bot"; // <-- CAMBIA ESTO por el username real de tu bot (sin @)
   const MINI_APP_SHORT_NAME = "Regalos"; // short name real, asignado en BotFather con /newapp
@@ -467,7 +463,6 @@
     document.getElementById("qtyHuevos").textContent = state.huevos;
     document.getElementById("qtyCapturas").textContent = state.capturas;
     document.getElementById("streakText").textContent = "🔥 Racha: " + state.streak + " dias";
-    document.getElementById("missionAdsProgress").textContent = state.totalAdsWatched;
     document.getElementById("missionGiftProgress").textContent = state.giftsSentToday + "/1";
 
     const boostActive = state.boostActiveUntil && new Date(state.boostActiveUntil) > new Date();
@@ -960,8 +955,11 @@
           <div>
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">⭐ Niveles</p>
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;margin-bottom:8px;">
-              Tus capturas acumuladas de por vida te suben de nivel. Cada nivel da una recompensa unica
-              (monedas, huevos o boost gratis) que no afecta el ranking semanal — es solo progreso personal.
+              Tus capturas acumuladas de por vida te suben de nivel. Cada nivel te da una recompensa real
+              (PokéMonedas, huevos o boost gratis) que se suma a tu inventario y si puedes usar en el juego.
+              Lo unico que NO da es puntos extra de ranking semanal — eso es a proposito, para que subir de
+              nivel sea un logro permanente sin darte ventaja injusta en la competencia de cada semana
+              (que siempre arranca en 0 para todos, viejos y nuevos jugadores por igual).
             </p>
             <ul style="font-size:12px;color:#9a9aa5;line-height:1.7;padding-left:18px;">
               ${LEVEL_THRESHOLDS.map(l => `<li>Nivel ${l.level} (${l.capturesRequired} capturas): ${l.label}</li>`).join("")}
