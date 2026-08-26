@@ -416,6 +416,12 @@
       renderState();
       loadFriends();
 
+      debugLog("Cooldowns recibidos: " + JSON.stringify(data.ad_cooldowns));
+
+      if (data._debug) {
+        data._debug.forEach(msg => debugLog("BACKEND ERROR: " + msg));
+      }
+
       if (data.ad_cooldowns) {
         for (const [networkName, secondsRemaining] of Object.entries(data.ad_cooldowns)) {
           if (secondsRemaining > 0) startAdCooldown(networkName, secondsRemaining);
@@ -662,6 +668,10 @@
 
       const data = await res.json();
       debugLog("Recompensa recibida: +" + data.reward_quantity + " PokéMonedas");
+
+      if (data._debug) {
+        data._debug.forEach(msg => debugLog("BACKEND ERROR: " + msg));
+      }
 
       state.cristales = data.inventory.cristales;
       state.huevos = data.inventory.huevos;
