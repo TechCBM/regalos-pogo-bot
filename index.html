@@ -195,9 +195,9 @@
   <!-- VISTA: INICIO -->
   <div id="viewHome">
     <div onclick="showTab('leaderboard')" style="margin:0 16px 14px;background:linear-gradient(135deg,#2d2410,#1a1a22);border:1px solid #fdcb6e;border-radius:14px;padding:12px 14px;cursor:pointer;">
-      <p style="font-size:13px;font-weight:700;color:#fdcb6e;margin-bottom:3px;">🏆 Premio semanal</p>
+      <p style="font-size:13px;font-weight:700;color:#fdcb6e;margin-bottom:3px;">🏆 Premio: 550 PokéMonedas</p>
       <p style="font-size:12px;color:#d0d0d8;line-height:1.4;">
-        El top 10% de jugadores con mas puntos esta semana gana un premio real.
+        El top 10% de jugadores con mas puntos esta semana se reparte el premio.
         Se reinicia cada lunes a las 00:00 (hora de Peru). Toca para ver el ranking →
       </p>
     </div>
@@ -891,14 +891,15 @@
               Cada anuncio que ves te da <b>PokéMonedas</b> 🪙, y cada cierta cantidad tambien
               <b>huevos</b> 🥚 y <b>capturas</b> 🎯. No hay limite diario de anuncios: mientras mas veas,
               mas ganas. Todo lo que hagas en la app tambien suma puntos al ranking semanal — los
-              mejores de la semana ganan un premio real.
+              mejores de la semana se reparten el premio.
             </p>
           </div>
 
           <div>
-            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🏆 El premio semanal</p>
+            <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">🏆 El premio: 550 PokéMonedas</p>
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
-              Cada semana se arma un ranking por puntos. ${winnersLine} El ranking se reinicia
+              Cada semana se arma un ranking por puntos, y el top 10% se reparte
+              <b style="color:var(--pkm-gold);">550 PokéMonedas</b>. ${winnersLine} El ranking se reinicia
               cada lunes a las 00:00 (hora de Peru) para todos por igual, asi que empezar tarde
               no es desventaja: la semana siempre arranca en 0 para todos.
             </p>
@@ -947,7 +948,8 @@
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;">
               Desde tu Perfil puedes cambiar tus PokéMonedas por puntos del ranking semanal:
               <b>${COINS_PER_POINT} PokéMonedas = 1 punto</b>. Hay un tope de
-              <b>${MAX_REDEEM_POINTS_PER_DAY} puntos por dia</b> por jugador, para que sea parejo entre
+              <b>${MAX_REDEEM_POINTS_PER_DAY} puntos por dia</b> por jugador (equivale a
+              ${MAX_REDEEM_POINTS_PER_DAY * COINS_PER_POINT} PokéMonedas), para que sea parejo entre
               todos sin importar cuantas monedas tengas guardadas.
             </p>
           </div>
@@ -956,7 +958,7 @@
             <p style="font-size:13px;font-weight:700;color:var(--pkm-gold);margin-bottom:6px;">⭐ Niveles</p>
             <p style="font-size:13px;color:#d0d0d8;line-height:1.5;margin-bottom:8px;">
               Tus capturas acumuladas de por vida te suben de nivel. Cada nivel te da una recompensa real
-              (PokéMonedas, huevos o boost gratis) que se suma a tu inventario y si puedes usar en el juego.
+              (PokéMonedas, huevos o boost gratis) que se suma a tu inventario y si la puedes usar en el juego.
               Lo unico que NO da es puntos extra de ranking semanal — eso es a proposito, para que subir de
               nivel sea un logro permanente sin darte ventaja injusta en la competencia de cada semana
               (que siempre arranca en 0 para todos, viejos y nuevos jugadores por igual).
